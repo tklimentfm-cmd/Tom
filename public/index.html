@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COT Forex Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0a0c10;--surface:#0f1218;--border:#1e2330;
+    --green:#00e5a0;--red:#ff4060;--blue:#4d9fff;--yellow:#f5c842;
+    --text:#e2e8f0;--muted:#64748b;--dim:#94a3b8;--card:#111722;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;padding:16px;min-height:100vh}
+
+  .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+  .header h1{font-family:'Space Mono',monospace;font-size:15px;color:var(--blue);letter-spacing:2px}
+  .header p{font-size:10px;color:var(--muted);margin-top:2px;font-family:'Space Mono',monospace}
+  .badge{display:flex;align-items:center;gap:7px;border-radius:20px;padding:5px 12px;font-size:10px;font-family:'Space Mono',monospace;transition:all .3s}
+  .badge.ok{background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.25);color:var(--green)}
+  .badge.loading{background:rgba(77,159,255,0.08);border:1px solid rgba(77,159,255,0.25);color:var(--blue)}
+  .badge.err{background:rgba(255,64,96,0.08);border:1px solid rgba(255,64,96,0.25);color:var(--red)}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.8s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .tab{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s}
+  .tab:hover{border-color:var(--blue);color:var(--blue)}
+  .tab.active{background:rgba(77,159,255,0.12);border-color:var(--blue);color:var(--blue)}
+  .tab.dxm.active{background:rgba(245,200,66,0.1);border-color:var(--yellow);color:var(--yellow)}
+  .tab.dxm{border-color:rgba(245,200,66,0.3);color:var(--yellow)}
+
+  .tf-row{display:flex;gap:6px;margin-bottom:16px}
+  .tf{padding:4px 11px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;cursor:pointer;transition:all .2s}
+  .tf:hover{color:var(--text)}
+  .tf.active{background:var(--border);color:var(--text)}
+
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+  .stat-l{font-size:8px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+  .stat-v{font-size:16px;font-weight:600;font-family:'Space Mono',monospace}
+  .stat-s{font-size:8px;color:var(--muted);margin-top:1px}
+
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .card-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+  .card-t{font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:1px}
+  .card-d{font-size:8px;color:var(--muted);margin-top:2px}
+  .card-v{font-family:'Space Mono',monospace;font-size:18px;font-weight:700}
+  .legend{display:flex;gap:12px;margin-bottom:8px}
+  .leg{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--muted);font-family:'Space Mono',monospace}
+  .leg-dot{width:7px;height:7px;border-radius:50%}
+  .bar-wrap{margin-top:10px}
+  .bar-meta{display:flex;justify-content:space-between;font-size:8px;color:var(--muted);font-family:'Space Mono',monospace;margin-bottom:4px}
+  .bar-track{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:3px;transition:width 1.2s ease}
+
+  .crosshair-box{position:fixed;background:#0f1218;border:1px solid #2d3a52;border-radius:8px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:10px;pointer-events:none;z-index:9999;display:none;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+  .crosshair-date{color:var(--muted);margin-bottom:7px;font-size:9px;border-bottom:1px solid var(--border);padding-bottom:5px}
+  .crosshair-row{display:flex;justify-content:space-between;gap:16px;margin-bottom:3px}
+  .crosshair-label{color:var(--muted)}
+  .crosshair-val{font-weight:700}
+
+  .loading-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:14px}
+  .spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)}
+
+  .info{font-size:9px;color:var(--muted);text-align:center;margin-top:12px;font-family:'Space Mono',monospace}
+  .note{background:rgba(77,159,255,0.07);border:1px solid rgba(77,159,255,0.2);border-radius:6px;padding:7px 12px;font-size:9px;color:var(--blue);font-family:'Space Mono',monospace;margin-bottom:12px;text-align:center}
+
+  .green{color:var(--green)} .red{color:var(--red)} .blue{color:var(--blue)} .yellow{color:var(--yellow)}
+  @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>COT FOREX DASHBOARD</h1>
+    <p>CFTC Legacy Report · Non-Commercial Positions</p>
+  </div>
+  <div class="badge loading" id="badge"><div class="dot"></div><span id="badgeText">NAČÍTÁM...</span></div>
+</div>
+
+<div class="note" id="noteBar">📡 Stahuju živá data z CFTC...</div>
+
+<div class="tabs" id="pairTabs"></div>
+<div class="tf-row" id="tfTabs"></div>
+<div id="statsArea"></div>
+<div id="chartsArea"></div>
+<div class="info" id="infoLine"></div>
+<div class="crosshair-box" id="tooltip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const PAIRS = ['EUR','GBP','JPY','AUD','CAD','CHF','DXM'];
+const PAIR_LABELS = {EUR:'EUR/USD',GBP:'GBP/USD',JPY:'JPY/USD',AUD:'AUD/USD',CAD:'CAD/USD',CHF:'CHF/USD',DXM:'DXM (USD Index)'};
+const TFS = [{l:'1W',w:2},{l:'1M',w:4},{l:'3M',w:13},{l:'6M',w:26}];
+
+let curPair = 0, curTF = 2;
+let cache = {};   // symbol -> array of {date,long,short}
+let charts = {};
+
+// ── Helpers ──────────────────────────────────────────────────────────
+const fmtDate = str => new Date(str).toLocaleDateString('cs-CZ',{day:'2-digit',month:'2-digit',year:'2-digit'});
+const fmtNum  = v => v.toLocaleString('cs-CZ');
+const fmtK    = v => (v>=0?'':'-')+Math.abs(Math.round(v/1000))+'K';
+
+// ── Tabs ──────────────────────────────────────────────────────────────
+function buildTabs(){
+  const p = document.getElementById('pairTabs');
+  PAIRS.forEach((k,i) => {
+    const b = document.createElement('button');
+    b.className = 'tab'+(k==='DXM'?' dxm':'')+(i===0?' active':'');
+    b.textContent = PAIR_LABELS[k];
+    b.onclick = () => { curPair=i; updateActive('pairTabs','tab',i); loadAndRender(); };
+    p.appendChild(b);
+  });
+  const t = document.getElementById('tfTabs');
+  TFS.forEach((tf,i) => {
+    const b = document.createElement('button');
+    b.className = 'tf'+(i===curTF?' active':'');
+    b.textContent = tf.l;
+    b.onclick = () => { curTF=i; updateActive('tfTabs','tf',i); render(); };
+    t.appendChild(b);
+  });
+}
+function updateActive(pid,cls,idx){
+  document.getElementById(pid).querySelectorAll('.'+cls).forEach((b,i)=>b.classList.toggle('active',i===idx));
+}
+
+// ── Fetch from own API ────────────────────────────────────────────────
+async function fetchCOT(symbol) {
+  if (cache[symbol]) return cache[symbol];
+
+  setBadge('loading','NAČÍTÁM...');
+  const res = await fetch(`/api/cot?symbol=${symbol}&limit=30`);
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+
+  cache[symbol] = json.data; // [{date,long,short}]
+  return cache[symbol];
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────
+function setBadge(state, text){
+  const b = document.getElementById('badge');
+  b.className = 'badge ' + state;
+  document.getElementById('badgeText').textContent = text;
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+function showTooltip(e, dateStr, lv, sv, nv, pct){
+  const g = nv>=0;
+  tooltip.innerHTML = `
+    <div class="crosshair-date">📅 ${dateStr}</div>
+    <div class="crosshair-row"><span class="crosshair-label">LONG</span><span class="crosshair-val green">${fmtNum(lv)}</span></div>
+    <div class="crosshair-row"><span class="crosshair-label">SHORT</span><span class="crosshair-val red">${fmtNum(sv)}</span></div>
+    <div class="crosshair-row"><span class="crosshair-label">NET</span><span class="crosshair-val ${g?'green':'red'}">${nv>=0?'+':''}${fmtNum(nv)}</span></div>
+    <div class="crosshair-row" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border)">
+      <span class="crosshair-label">% LONG</span>
+      <span class="crosshair-val ${g?'green':'red'}">${pct}%</span>
+    </div>`;
+  tooltip.style.display='block';
+  let x=e.clientX+16, y=e.clientY-20;
+  if(x+185>window.innerWidth) x=e.clientX-200;
+  if(y+165>window.innerHeight) y=e.clientY-165;
+  tooltip.style.left=x+'px'; tooltip.style.top=y+'px';
+}
+document.addEventListener('mousemove', e => {
+  if(tooltip.style.display==='block'){
+    let x=e.clientX+16,y=e.clientY-20;
+    if(x+185>window.innerWidth) x=e.clientX-200;
+    if(y+165>window.innerHeight) y=e.clientY-165;
+    tooltip.style.left=x+'px'; tooltip.style.top=y+'px';
+  }
+});
+
+// ── Load + Render ─────────────────────────────────────────────────────
+async function loadAndRender(){
+  const symbol = PAIRS[curPair];
+
+  // Show spinner while loading
+  if(!cache[symbol]){
+    document.getElementById('statsArea').innerHTML = '';
+    document.getElementById('chartsArea').innerHTML = `
+      <div class="loading-overlay" style="grid-column:1/-1">
+        <div class="spinner"></div>
+        <div class="loading-text">Stahuju ${PAIR_LABELS[symbol]} z CFTC API...</div>
+      </div>`;
+    Object.values(charts).forEach(c=>c.destroy()); charts={};
+  }
+
+  try {
+    await fetchCOT(symbol);
+    setBadge('ok','LIVE CFTC');
+    document.getElementById('noteBar').textContent =
+      `📊 Živá data z CFTC · Cachováno na 1h · Aktualizuje se každý pátek 21:30 CZ · Hover = přesné hodnoty`;
+    render();
+  } catch(err){
+    setBadge('err','CHYBA');
+    document.getElementById('chartsArea').innerHTML = `
+      <div style="grid-column:1/-1;background:rgba(255,64,96,0.08);border:1px solid rgba(255,64,96,.25);border-radius:8px;padding:24px;text-align:center;font-family:'Space Mono',monospace;font-size:12px;color:var(--red)">
+        ⚠ Chyba při načítání dat z CFTC API<br><small style="color:var(--muted)">${err.message}</small>
+      </div>`;
+  }
+}
+
+function render(){
+  const symbol = PAIRS[curPair];
+  const allData = cache[symbol];
+  if(!allData) return;
+
+  const n = TFS[curTF].w;
+  const data = allData.slice(-n);
+  const labels = data.map(d=>fmtDate(d.date));
+  const longs  = data.map(d=>d.long);
+  const shorts = data.map(d=>d.short);
+  const nets   = longs.map((l,i)=>l-shorts[i]);
+
+  const last = data[data.length-1];
+  const prev = data[data.length-2] || last;
+  const net  = last.long - last.short;
+  const delta= net - (prev.long - prev.short);
+  const total= last.long + last.short;
+  const lpct = Math.round((last.long/total)*100);
+  const bull = net >= 0;
+  const isDXM= symbol==='DXM';
+  const ac   = isDXM?'yellow':(bull?'green':'red');
+
+  // Stats
+  document.getElementById('statsArea').innerHTML = `
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-l">NET POZICE</div>
+        <div class="stat-v ${bull?'green':'red'}">${net>=0?'+':''}${fmtK(net)}</div>
+        <div class="stat-s">Ke dni ${fmtDate(last.date)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-l">LONG</div>
+        <div class="stat-v green">${fmtNum(last.long)}</div>
+        <div class="stat-s">${lpct}% z celku</div>
+      </div>
+      <div class="stat">
+        <div class="stat-l">SHORT</div>
+        <div class="stat-v red">${fmtNum(last.short)}</div>
+        <div class="stat-s">${100-lpct}% z celku</div>
+      </div>
+      <div class="stat">
+        <div class="stat-l">TÝDENNÍ ZMĚNA</div>
+        <div class="stat-v ${delta>=0?'green':'red'}">${delta>=0?'+':''}${fmtK(delta)}</div>
+        <div class="stat-s">vs. předchozí týden</div>
+      </div>
+      <div class="stat">
+        <div class="stat-l">SENTIMENT</div>
+        <div class="stat-v ${bull?'green':'red'}">${bull?'BULLISH':'BEARISH'}</div>
+        <div class="stat-s">${isDXM?'USD síla':'Non-comm.'}</div>
+      </div>
+    </div>`;
+
+  document.getElementById('chartsArea').innerHTML = `
+    <div class="charts">
+      <div class="card">
+        <div class="card-h">
+          <div><div class="card-t">COT — ${PAIR_LABELS[symbol]}</div><div class="card-d">Long vs Short · hover = přesné hodnoty</div></div>
+          <div class="card-v ${ac}">${lpct}<span style="font-size:11px;color:var(--muted)">%L</span></div>
+        </div>
+        <div class="legend">
+          <div class="leg"><div class="leg-dot" style="background:#00e5a0"></div>Long</div>
+          <div class="leg"><div class="leg-dot" style="background:#ff4060"></div>Short</div>
+        </div>
+        <canvas id="areaChart" height="175" style="cursor:crosshair"></canvas>
+        <div class="bar-wrap">
+          <div class="bar-meta"><span>SHORT ${100-lpct}%</span><span>LONG ${lpct}%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${lpct}%;background:${bull?'var(--green)':'var(--red)'}"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <div><div class="card-t">NET POZICE — ${PAIR_LABELS[symbol]}</div><div class="card-d">Non-commercial spekulanti</div></div>
+          <div class="card-v ${bull?'green':'red'}" style="font-size:15px">${net>=0?'+':''}${fmtK(net)}</div>
+        </div>
+        <canvas id="netChart" height="200" style="cursor:crosshair"></canvas>
+      </div>
+    </div>`;
+
+  Object.values(charts).forEach(c=>c.destroy()); charts={};
+
+  const makePlugin = rawData => ({
+    id:'hoverSync',
+    afterEvent(chart,args){
+      const evt=args.event;
+      if(evt.type==='mousemove'){
+        const pts=chart.getElementsAtEventForMode(evt.native,'index',{intersect:false},true);
+        if(pts.length){
+          const row=rawData[pts[0].index];
+          const lv=row.long,sv=row.short,nv=lv-sv;
+          showTooltip(evt.native,fmtDate(row.date),lv,sv,nv,Math.round((lv/(lv+sv))*100));
+        }
+      } else if(evt.type==='mouseout') tooltip.style.display='none';
+    }
+  });
+
+  const ac2 = document.getElementById('areaChart').getContext('2d');
+  const gg = ac2.createLinearGradient(0,0,0,200);
+  gg.addColorStop(0,'rgba(0,229,160,0.38)'); gg.addColorStop(1,'rgba(0,229,160,0.02)');
+  const rg = ac2.createLinearGradient(0,0,0,200);
+  rg.addColorStop(0,'rgba(255,64,96,0.38)'); rg.addColorStop(1,'rgba(255,64,96,0.02)');
+
+  charts.area = new Chart(ac2, {
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Long', data:longs, borderColor:'#00e5a0',backgroundColor:gg,borderWidth:2,pointRadius:data.length<=4?5:3,pointHoverRadius:7,pointBackgroundColor:'#00e5a0',fill:true,tension:0.35},
+      {label:'Short',data:shorts,borderColor:'#ff4060',backgroundColor:rg,borderWidth:2,pointRadius:data.length<=4?5:3,pointHoverRadius:7,pointBackgroundColor:'#ff4060',fill:true,tension:0.35}
+    ]},
+    options:{
+      responsive:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{
+        x:{grid:{color:'rgba(30,35,48,.8)'},ticks:{color:'#64748b',font:{size:8,family:'Space Mono'},maxTicksLimit:data.length<=4?data.length:7}},
+        y:{grid:{color:'rgba(30,35,48,.8)'},ticks:{color:'#64748b',font:{size:8,family:'Space Mono'},callback:v=>v>=1000?Math.round(v/1000)+'K':v}}
+      }
+    },
+    plugins:[makePlugin(data)]
+  });
+
+  const nc = document.getElementById('netChart').getContext('2d');
+  charts.net = new Chart(nc, {
+    type:'bar',
+    data:{labels,datasets:[{
+      label:'Net',data:nets,
+      backgroundColor:nets.map(v=>v>=0?'rgba(0,229,160,0.65)':'rgba(255,64,96,0.65)'),
+      borderColor:nets.map(v=>v>=0?'#00e5a0':'#ff4060'),
+      borderWidth:1,borderRadius:3,
+      hoverBackgroundColor:nets.map(v=>v>=0?'rgba(0,229,160,.95)':'rgba(255,64,96,.95)')
+    }]},
+    options:{
+      responsive:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{
+        x:{grid:{color:'rgba(30,35,48,.4)'},ticks:{color:'#64748b',font:{size:8,family:'Space Mono'},maxTicksLimit:data.length<=4?data.length:7}},
+        y:{grid:{color:'rgba(30,35,48,.6)'},ticks:{color:'#64748b',font:{size:8,family:'Space Mono'},callback:v=>(v>=0?'+':'')+Math.round(v/1000)+'K'}}
+      }
+    },
+    plugins:[makePlugin(data)]
+  });
+
+  document.getElementById('infoLine').textContent =
+    `CFTC Legacy Report · Non-Commercial · ${data.length} týdnů · Poslední: ${fmtDate(last.date)} · Vydáváno každý pátek 21:30 CZ`;
+}
+
+buildTabs();
+loadAndRender();
+</script>
+</body>
+</html>
