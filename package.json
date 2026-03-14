@@ -1,0 +1,6 @@
+{
+  "name": "cot-forex-dashboard",
+  "version": "1.0.0",
+  "description": "COT Forex Dashboard - live CFTC data",
+  "engines": { "node": ">=18" }
+}
